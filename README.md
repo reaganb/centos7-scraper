@@ -35,7 +35,7 @@ $ pipenv shell
 ```
 #### Install dependencies
 ```
-$ pipenv install Pipfile
+$ pipenv install
 ```
 
 ### Run the script and check the csv file:
