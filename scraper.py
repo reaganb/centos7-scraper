@@ -155,7 +155,7 @@ class Scraper:
 if __name__ == "__main__":
     # The start of the script.
 
-    # Instantiating the scraper object from the Scaper class
+    # Instantiating the scraper object from the Scaper class. Indicating a explicit csv file name.
     scraper = Scraper(csv_file='subdir.csv')
 
     # Running the method of the object for recursive scraping. It needs a valid url from the CentOS 7 repository
