@@ -3,8 +3,7 @@
 The Scraper class of the scraper module have methods to recursively scrape for downloadable files from the http://mirror.rise.ph/ website. To be specific, this project can harvest all file information from the CentOS 7 repository in the website. 
 
 ### Usage
-The script will work as long as there is Python 3 installed on the system.
-Check if it is installed by executing the following command on the terminal.
+Check if Python 3 is installed in the system.
 ```
 $ python --version
 ```
@@ -20,10 +19,12 @@ $ git clone -b project-structure https://github.com/rgbtrend/centos7-scraper.git
 ```
 $ pipenv shell
 ```
+
 #### Install dependencies
 ```
 $ pipenv update
 ```
+
 #### Run
 ```
 $ python scraper/__main__.py
@@ -36,16 +37,18 @@ files.csv
 ```
 $ pipenv shell
 ```
-#### Install dependencies
+
+#### Install the package and its dependencies
 ```
 $ pipenv install -e .
 ```
+
 #### Run
 ```
-$ python -m 
-
+$ python -m scraper
+$ ls *.csv
+files.csv
 ```
-
 
 ### Run the script and check the csv file:
 ```
