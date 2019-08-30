@@ -8,7 +8,7 @@ import re
 
 class Scraper:
 
-    def __init__(self, csv_file="files.csv"):
+    def __init__(self, csv_file="file.csv"):
         """
         The __init__ or the constructor method. Everything under here will be run every time
         another object is instantiated from this class. The csv file will be created immediately
