@@ -27,7 +27,7 @@ $ pipenv update
 
 #### Run
 ```
-$ python scraper/__main__.py
+$ python scraper/scraper.py
 $ ls *.csv
 files.csv
 ```
