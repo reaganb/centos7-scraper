@@ -1,20 +1,6 @@
-# Machine Problem: Web Scraping
+## The Web scraper project
 
-### Requirements:
-
-1. Your program needs to scrape all of the filenames, download links and filesizes in all of the inside pages of this page: http://mirror.rise.ph/centos/7/
-
-2. Save the results in a CSV file with the following columns: filename,download_link,filesize
-
-3. Create a new repository for this project named "centos7-scraper" and paste the link here for checking
-
-### Prerequisites
-1. Windows/Linux OS
-2. Python 3
-
-## The scraper.py script
-
-The script consists of the Scraper class. Its method can be used to scrape the http://mirror.rise.ph/centos/7/ url recursively. The underlying url behind this url consist of files for the CentOS 7 repository.
+The Scraper class of the scraper module have methods to recursively scrape for downloadable files from the http://mirror.rise.ph/ website. To be specific, this project can harvest all file information from the CentOS 7 repository in the website. 
 
 ### Usage
 The script will work as long as there is Python 3 installed on the system.
@@ -24,19 +10,42 @@ $ python --version
 ```
 Also, make sure that **pipenv** is installed as the main virtual environment manager for python projects.
 
-#### Clone the repository
+#### Clone the repository and checkout to this branch
 ```
-$ git clone https://github.com/rgbtrend/centos7-scraper.git
+$ git clone -b project-structure https://github.com/rgbtrend/centos7-scraper.git
 ```
 
+### Run as One-Off script
 #### Create the environment
 ```
 $ pipenv shell
 ```
 #### Install dependencies
 ```
-$ pipenv install
+$ pipenv update
 ```
+#### Run
+```
+$ python scraper/__main__.py
+$ ls *.csv
+files.csv
+```
+
+### Run as Installable Single Package
+#### Create the environment
+```
+$ pipenv shell
+```
+#### Install dependencies
+```
+$ pipenv install -e .
+```
+#### Run
+```
+$ python -m 
+
+```
+
 
 ### Run the script and check the csv file:
 ```
