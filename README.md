@@ -56,6 +56,18 @@ $ python scraper.py
 $ ls *.csv
 file.csv
 ```
-Note: The default csv file would be file.csv, but  on the script, it can be changed to anything.
+
+### Editing arguments
+```
+data
+    -- config.ini
+    --- config_tests.ini
+```
+```
+[args]
+url = http://mirror.rise.ph/centos/7/configmanagement/
+csv = file.csv
+```
+At the data directory, you can change the input data for the script or test cases
 
 
