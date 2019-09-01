@@ -137,8 +137,10 @@ class Scraper:
 
         return rows
 
-if __name__ == "__main__":
-    # The start of the script.
+def main():
+    """
+    The start of the script.
+    """
 
     # Instantiating the scraper object from the Scaper class. Indicating a explicit csv file name.
     scraper = Scraper()
@@ -150,3 +152,7 @@ if __name__ == "__main__":
         url='http://mirror.rise.ph/centos/7/configmanagement/'
         # url='http://mirror.rise.ph/centos/7/atomic/x86_64/adb/'
     )
+
+
+if __name__ == "__main__":
+    main()
