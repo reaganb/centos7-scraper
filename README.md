@@ -11,7 +11,7 @@ Also, make sure that **pipenv** is installed as the main virtual environment man
 
 #### Clone the repository and checkout to this branch
 ```
-$ git clone -b project-structure https://github.com/rgbtrend/centos7-scraper.git
+$ git clone -b unit-tests https://github.com/rgbtrend/centos7-scraper.git
 ```
 
 ### Run as One-Off script
