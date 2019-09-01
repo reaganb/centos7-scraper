@@ -1,7 +1,9 @@
 from urllib.parse import urljoin
+import configparser
 from bs4 import BeautifulSoup
 from requests import get
-import os.path
+from requests.exceptions import RequestException
+import os.path as op
 import csv
 import re
 
@@ -18,54 +20,34 @@ class Scraper:
                         when there is no explicit assignment upon object creation.
         """
 
-        self.csv_file = os.path.abspath(csv_file)
+        self.csv_file = op.abspath(csv_file)
         self.urls_set_global = set()
 
+        self.create_csv()
+
+    def create_csv(self):
         with open(self.csv_file, 'w') as file:
             file.write("file_name,download_link,file_size\n")
+        return op.isfile(self.csv_file)
 
-    def scrape_url(self, url):
+    def get_url(self, url):
         """
-        This is the method for scraping a url and look for another url that points to another page where
-        there are downloadable files. It will yield a set containing the harvested collection
-        of url.
+        The class method that implements the requests get() method with additional error
+        handling.
+
         Argument:
-            url -- the url for scraping
-        yield -- set of url
+            url -- the url to get() request for
+
+        return -- The response object or None
         """
-
-        response = get(url)
-        data = response.text
-        soup = BeautifulSoup(data, 'html.parser')
-
-        urls_set = set()
-
-        for attr in soup.find('table').find_all('a'):
-            link = attr.get('href')
-            match = re.match(r'[^\/]+[\/]$', link)
-            if match and not match.group().startswith('/'):
-                if urljoin(url, link) not in self.urls_set_global:
-                    self.write_to_csv(urljoin(url, link))
-                self.urls_set_global.add(urljoin(url, link))
-                urls_set.add(urljoin(url, link))
-
-        yield from urls_set
-
-    def scrape_all_url(self, url):
-        """
-        A method to recursively look for url that consist of downloadable files.
-        It will first check if the url is from the CentOS 7 repository then uses that url as the root node.
-        It uses a special algorithm for traversing n-ary trees called pre-order traversal.
-        Argument:
-            url -- the url for recursively scraping
-        """
-        rise_website = 'http://mirror.rise.ph/'
-        if rise_website in url:
-            for url_ in self.scrape_url(url.strip()):
-                self.scrape_all_url(url_.strip())
-        else:
-            print("Not the Rise website!")
-            exit(1)
+        try:
+            response = get(url)
+            if response.status_code == 200:
+                return response
+            else:
+                raise RequestException('There is an error in the exception!')
+        except RequestException as e:
+            return None
 
     def write_to_csv(self, url):
         """
@@ -82,17 +64,80 @@ class Scraper:
             for line in rows:
                 writer.writerow(line)
 
+        return op.isfile(self.csv_file)
+
+    def scrape_all_url(self, url):
+        """
+        A method to recursively look for url that consist of downloadable files.
+        It will first check if the url is from the CentOS 7 repository then uses that url as the root node.
+        It uses a special algorithm for traversing n-ary trees called pre-order traversal.
+        Argument:
+            url -- the url for recursively scraping
+        """
+        rise_website = 'http://mirror.rise.ph/'
+        try:
+            if rise_website in url:
+                for url_ in self.scrape_url(url.strip()):
+                    self.scrape_all_url(url_.strip())
+            else:
+                raise ValueError("Not the Rise website!")
+        except ValueError as e:
+            print(e)
+            return e
+
+    def scrape_url(self, url):
+        """
+        This is the method for scraping a url and look for another url that points to another page where
+        there are downloadable files. It will yield a set containing the harvested collection
+        of url.
+        Argument:
+            url -- the url for scraping
+        yield -- set of url
+        """
+
+        response = self.get_url(url)
+        data = response.text
+        soup = BeautifulSoup(data, 'html.parser')
+
+        urls_set = set()
+
+        for attr in soup.find('table').find_all('a'):
+            link = attr.get('href')
+            match = re.match(r'[^\/]+[\/]$', link)
+            if match and not match.group().startswith('/'):
+                if urljoin(url, link) not in self.urls_set_global:
+                    self.write_to_csv(urljoin(url, link))
+                self.urls_set_global.add(urljoin(url, link))
+                urls_set.add(urljoin(url, link))
+
+        yield from urls_set
+
     def scrape_files_url(self, url):
         """
-        Accepting a single argument url, this method consist of inner methods to help format the text line
+        The method to call for scraping all the files from a url
+
+        Argument:
+            url - the downloadable file url
+
+        return -- the return data of the scrape_page method
+        """
+
+        response = self.get_url(url)
+        data = response.text
+
+        rows = self.scrape_page(data)
+
+        return rows
+
+    def scrape_page(self, data):
+        """
+        Accepting a single argument data which is a get response text, this method consist of inner methods to help format the text line
         to be written to the csv file. It also has a get request method that needs the url for downloadable files.
         Argument:
             url - the downloadable file url
         return -- A tuple of lists. Each list contain the file information
         """
 
-        response = get(url)
-        data = response.text
         soup = BeautifulSoup(data, 'html.parser')
         trow = (x for x in soup.find('table').findAll('tr'))
 
@@ -126,7 +171,7 @@ class Scraper:
             return -- line (the ordered list)
             """
             file_name = row_[1].text
-            download_link = urljoin(url, row_[1].find('a').get('href'))
+            download_link = urljoin(data, row_[1].find('a').get('href'))
             file_size = row_[-1].text.strip()
             line = [file_name, download_link, file_size]
 
@@ -137,21 +182,38 @@ class Scraper:
 
         return rows
 
+
 def main():
     """
     The start of the script.
     """
 
+    config = config_parser(file='../data/config.ini')
+    csv_config = config['args']['csv']
+    url_config = config['args']['url']
+
+
     # Instantiating the scraper object from the Scaper class. Indicating a explicit csv file name.
-    scraper = Scraper()
+    scraper = Scraper(csv_file=csv_config)
 
     # Running the method of the object for recursive scraping. It needs a valid url from the CentOS 7 repository
     # from the http://mirror.rise.ph website.
+
     scraper.scrape_all_url(
         # url='http://mirror.rise.ph/centos/7/'
-        url='http://mirror.rise.ph/centos/7/configmanagement/'
+        url=url_config
         # url='http://mirror.rise.ph/centos/7/atomic/x86_64/adb/'
     )
+
+
+def config_parser(file):
+    config_file = op.join(op.dirname(op.abspath(__file__)), file)
+    if op.isfile(config_file):
+        config = configparser.ConfigParser()
+        config.read(config_file)
+        return config
+    else:
+        return None
 
 
 if __name__ == "__main__":
