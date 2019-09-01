@@ -1,6 +1,5 @@
 import unittest
 import types
-from requests.exceptions import RequestException
 from scraper.scraper import Scraper
 from scraper.scraper import config_parser
 from urllib.parse import urljoin
@@ -57,7 +56,7 @@ class TestScraper(unittest.TestCase):
         """
         Testing the scrape_all_url method from the Scraper class
         """
-        
+
         url = urljoin(self.base_url, 'centos/7/configmanagement/')
         self.assertIsNone(self.scrape.scrape_all_url(url))
 
