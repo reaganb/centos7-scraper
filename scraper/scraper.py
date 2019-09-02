@@ -1,16 +1,24 @@
 from urllib.parse import urljoin
 import configparser
+import argparse
 from bs4 import BeautifulSoup
 from requests import get
 from requests.exceptions import RequestException
 import os.path as op
 import csv
 import re
+from sqlalchemy.orm import sessionmaker
+import sys
 
+# print(sys.path)
+from models.models import File, init_database
+
+
+# from models import models
 
 class Scraper:
 
-    def __init__(self, csv_file="file.csv"):
+    def __init__(self, csv_file="file.csv", write_to_db=False):
         """
         The __init__ or the constructor method. Everything under here will be run every time
         another object is instantiated from this class. The csv file will be created immediately
@@ -22,6 +30,15 @@ class Scraper:
 
         self.csv_file = op.abspath(csv_file)
         self.urls_set_global = set()
+
+
+
+        self.session = None
+
+        if write_to_db:
+            engine = init_database()
+            self.session = sessionmaker(bind=engine)
+            pass
 
         self.create_csv()
 
@@ -62,6 +79,10 @@ class Scraper:
         with open(self.csv_file, 'a', newline='') as file:
             writer = csv.writer(file, delimiter=',', quoting=csv.QUOTE_ALL)
             for line in rows:
+                row = File(line[0], line[1], line[2])
+                self.session.add(row)
+                self.session.commit()
+                self.session.close()
                 writer.writerow(line)
 
         return op.isfile(self.csv_file)
@@ -187,14 +208,17 @@ def main():
     """
     The start of the script.
     """
-
+    parser = argparse.ArgumentParser()
     config = config_parser(file='../data/config.ini')
     csv_config = config['args']['csv']
     url_config = config['args']['url']
 
+    parser.add_argument('-db', dest='write_to_db', action='store_true')
+
+    args = parser.parse_args()
 
     # Instantiating the scraper object from the Scaper class. Indicating a explicit csv file name.
-    scraper = Scraper(csv_file=csv_config)
+    scraper = Scraper(csv_file=csv_config, write_to_db=args.write_to_db)
 
     # Running the method of the object for recursive scraping. It needs a valid url from the CentOS 7 repository
     # from the http://mirror.rise.ph website.
