@@ -125,11 +125,11 @@ class Scraper:
         response = self.get_url(url)
         data = response.text
 
-        rows = self.scrape_page(data)
+        rows = self.scrape_page(url, data)
 
         return rows
 
-    def scrape_page(self, data):
+    def scrape_page(self, url, data):
         """
         Accepting a single argument data which is a get response text, this method consist of inner methods to help format the text line
         to be written to the csv file. It also has a get request method that needs the url for downloadable files.
@@ -171,7 +171,7 @@ class Scraper:
             return -- line (the ordered list)
             """
             file_name = row_[1].text
-            download_link = urljoin(data, row_[1].find('a').get('href'))
+            download_link = urljoin(url, row_[1].find('a').get('href'))
             file_size = row_[-1].text.strip()
             line = [file_name, download_link, file_size]
 
