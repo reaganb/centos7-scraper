@@ -28,13 +28,23 @@ $ pipenv update
 ```
 
 #### Run the scraper
-On the top level directory, run the following to test the script. It has two options: database or csv writing
+On the top level directory, run the following to test the script. It has two options: database or csv writing.
 
+1. Writing to csv
 ```
 $ python -m scraper
 $ ls *.csv
 files.csv
 ```
+2. Writing to database
+```
+$ python -m scraper -db -hn <hostname> -un <username> -pw
+<username> Password:
+```
+By enabling the database flag ```-db```, The options: 
+```-hn``` - Provide the hostname, required
+```-un``` - Provide the username, also required
+```-pw``` - Password flag, definitely required and secure prompts a password
 
 #### Run the unit tests
 ```
@@ -45,16 +55,11 @@ It uses the pytest library to run these tests.
 
 ### Editing arguments
 ```
-data
+data module
     -- config.ini
-    --- config_tests.ini
-    ---
+    -- config_tests.ini
+    -- config_db.ini
 ```
-```
-[args]
-url = http://mirror.rise.ph/centos/7/configmanagement/
-csv = file.csv
-```
-At the data directory, you can change the input data for the script or test cases
+At the data directory, you can change the input data for the script, database credentials, and test cases.
 
 
