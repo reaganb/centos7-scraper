@@ -35,7 +35,8 @@ class Scraper:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
-        self.session, self.engine = self.setup_db(self.db, db_cred)
+        self.engine, self.session = self.setup_db(self.db, db_cred)
+
 
     def setup_db(self, db_check, db_cred):
         """
