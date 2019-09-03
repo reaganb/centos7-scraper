@@ -1,48 +1,70 @@
 from urllib.parse import urljoin
-import configparser
 import argparse
+import getpass
 from bs4 import BeautifulSoup
 from requests import get
 from requests.exceptions import RequestException
 import os.path as op
 import csv
 import re
-from sqlalchemy.orm import sessionmaker
 import sys
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import IntegrityError
+import logging
+from .db import File, Base, init_database, config_parser
 
-# print(sys.path)
-from models.models import File, init_database
-
-
-# from models import models
 
 class Scraper:
 
-    def __init__(self, csv_file="file.csv", write_to_db=False):
+    def __init__(self, csv_file="file.csv", db=False, db_cred=None):
         """
         The __init__ or the constructor method. Everything under here will be run every time
-        another object is instantiated from this class. The csv file will be created immediately
-        for every object creation.
-        Argument:
-             csv_file -- This is the filename of the csv file. By default, its name is "file.csv"
+        another object is instantiated from this class.
+
+        Arguments:
+            csv_file -- This is the filename of the csv file. By default, its name is "file.csv"
                         when there is no explicit assignment upon object creation.
+            db -- Flag for database writing instead of csv writing
+            db_cred -- The database credentials
         """
 
+        self.db = db
         self.csv_file = op.abspath(csv_file)
         self.urls_set_global = set()
 
+        logging.basicConfig(level=logging.INFO)
+        self.logger = logging.getLogger(__name__)
 
+        self.session, self.engine = self.setup_db(self.db, db_cred)
 
-        self.session = None
+    def setup_db(self, db_check, db_cred):
+        """
+        This method will run as long as the db flag was on during the argument parsing
 
-        if write_to_db:
-            engine = init_database()
-            self.session = sessionmaker(bind=engine)
-            pass
+        Arguments:
+            db_check -- The db writing flag
+            db_cred -- Important credentials for accessing the database
 
-        self.create_csv()
+        return -- engine and session object
+        """
+
+        session, engine = None, None
+        if db_check:
+            self.logger.info("Writing to database enabled")
+            engine = init_database(db_cred)
+            if engine:
+                Base.metadata.create_all(engine)
+                session = sessionmaker(bind=engine)()
+        else:
+            self.logger.info("Writing to csv enabled")
+            self.create_csv()
+
+        return engine, session
 
     def create_csv(self):
+        """
+        Method for creating a csv file at first
+        """
         with open(self.csv_file, 'w') as file:
             file.write("file_name,download_link,file_size\n")
         return op.isfile(self.csv_file)
@@ -57,14 +79,15 @@ class Scraper:
 
         return -- The response object or None
         """
+        response = None
         try:
             response = get(url)
             if response.status_code == 200:
                 return response
             else:
                 raise RequestException('There is an error in the exception!')
-        except RequestException as e:
-            return None
+        except RequestException:
+            return response.status_code
 
     def write_to_csv(self, url):
         """
@@ -73,19 +96,69 @@ class Scraper:
         indicated upon object instantiation.
         Argument:
             url -- the url where there are downloadable files url
+
+        return -- check if the csv file path exist
         """
         rows = self.scrape_files_url(url)
 
         with open(self.csv_file, 'a', newline='') as file:
             writer = csv.writer(file, delimiter=',', quoting=csv.QUOTE_ALL)
             for line in rows:
-                row = File(line[0], line[1], line[2])
-                self.session.add(row)
-                self.session.commit()
-                self.session.close()
+                self.logger.info(f"Writing {line[0]} to {self.csv_file}")
                 writer.writerow(line)
 
         return op.isfile(self.csv_file)
+
+    def write_to_db(self, url):
+        """
+        Once called, this method will call the scrape_files_url() method to harvest all the downloadable file links
+        based from the url argument. It will then write those links together with its information to the database.
+        Argument:
+            url -- the url where there are downloadable files url
+        """
+        rows = self.scrape_files_url(url)
+
+        rollback = 0
+        for line in rows:
+            file_name = line[0]
+            download_link = line[1]
+            file_size = line[2]
+            row = File(file_name=file_name,
+                       download_link=download_link,
+                       file_size=file_size)
+            try:
+                self.logger.info(f"Adding {file_name} to database..")
+                self.session.add(row)
+                self.session.commit()
+            except IntegrityError:
+                self.logger.error(f"{file_name} already exist! rolling back..")
+                self.session.rollback()
+                self.session.commit()
+
+    def run_scraper(self, url_config):
+        """
+        The main runner for this class.
+
+        Argument:
+            url_config -- the base url to scrape for
+        """
+        run_check = None
+        if self.db:
+            run_check = self.scrape_all_url(
+                # url='http://mirror.rise.ph/centos/7/'
+                url=url_config
+                # url='http://mirror.rise.ph/centos/7/atomic/x86_64/adb/'
+            )
+            self.session.close()
+        else:
+            run_check = self.scrape_all_url(
+                # url='http://mirror.rise.ph/centos/7/'
+                url=url_config
+                # url='http://mirror.rise.ph/centos/7/atomic/x86_64/adb/'
+            )
+
+        return run_check
+
 
     def scrape_all_url(self, url):
         """
@@ -103,7 +176,7 @@ class Scraper:
             else:
                 raise ValueError("Not the Rise website!")
         except ValueError as e:
-            print(e)
+            self.logger.error(e)
             return e
 
     def scrape_url(self, url):
@@ -127,7 +200,10 @@ class Scraper:
             match = re.match(r'[^\/]+[\/]$', link)
             if match and not match.group().startswith('/'):
                 if urljoin(url, link) not in self.urls_set_global:
-                    self.write_to_csv(urljoin(url, link))
+                    if self.db:
+                        self.write_to_db(urljoin(url, link))
+                    else:
+                        self.write_to_csv(urljoin(url, link))
                 self.urls_set_global.add(urljoin(url, link))
                 urls_set.add(urljoin(url, link))
 
@@ -213,32 +289,32 @@ def main():
     csv_config = config['args']['csv']
     url_config = config['args']['url']
 
-    parser.add_argument('-db', dest='write_to_db', action='store_true')
+    parser.add_argument('-db', dest='db', action='store_true')
+    parser.add_argument('-pw', required='-db' in sys.argv, dest='password_input', action='store_true')
+    parser.add_argument('-hn', required='-db' in sys.argv, dest='hostname_input')
+    parser.add_argument('-un', required='-db' in sys.argv, dest='username_input')
 
     args = parser.parse_args()
 
+    db_cred = None
+    if args.db:
+        user = args.username_input
+        host = args.hostname_input
+        password = getpass.getpass(prompt=f"{user} Password: ")
+        db_cred = {
+            'host': host,
+            'user': user,
+            'password': password
+        }
+
     # Instantiating the scraper object from the Scaper class. Indicating a explicit csv file name.
-    scraper = Scraper(csv_file=csv_config, write_to_db=args.write_to_db)
+    scraper = Scraper(csv_file=csv_config, db=args.db, db_cred=db_cred)
 
     # Running the method of the object for recursive scraping. It needs a valid url from the CentOS 7 repository
     # from the http://mirror.rise.ph website.
-
-    scraper.scrape_all_url(
-        # url='http://mirror.rise.ph/centos/7/'
-        url=url_config
-        # url='http://mirror.rise.ph/centos/7/atomic/x86_64/adb/'
+    scraper.run_scraper(
+        # url_config='http://mirror.rise.ph/centos/7/'
+        # url_config=url_config
+        url_config='http://mirror.rise.ph/centos/7/atomic/x86_64/adb/'
+        # url_config='http://mirror.rise.ph/centos/7/atomic/x86_64/repodata/'
     )
-
-
-def config_parser(file):
-    config_file = op.join(op.dirname(op.abspath(__file__)), file)
-    if op.isfile(config_file):
-        config = configparser.ConfigParser()
-        config.read(config_file)
-        return config
-    else:
-        return None
-
-
-if __name__ == "__main__":
-    main()
